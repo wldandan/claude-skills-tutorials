@@ -11,9 +11,20 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-# 配置
-REPO_OWNER="${REPO_OWNER:-gongxh13}"
-REPO_NAME="${REPO_NAME:-claude-skills-tutorials}"
+# 配置 - 自动检测 Git 仓库
+# 如果当前目录是 Git 仓库，则从 remote URL 中提取
+if [ -d .git ] && command -v git &> /dev/null; then
+    remote_url=$(git remote get-url origin 2>/dev/null || git remote get-url $(git remote | head -1) 2>/dev/null || echo "")
+    if [ -n "$remote_url" ]; then
+        # 从 URL 中提取 owner 和 repo 名称
+        # 支持 https://github.com/owner/repo.git 和 git@github.com:owner/repo.git 两种格式
+        if [[ "$remote_url" =~ github\.com[:/]([^/]+)/([^/\.]+) ]]; then
+            REPO_OWNER="${BASH_REMATCH[1]}"
+            REPO_NAME="${BASH_REMATCH[2]}"
+        fi
+    fi
+fi
+
 BRANCH="${BRANCH:-main}"
 BASE_URL="https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${BRANCH}"
 API_URL="https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents"

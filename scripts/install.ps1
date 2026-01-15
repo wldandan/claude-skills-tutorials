@@ -1,8 +1,37 @@
 # Claude Skills & Agents 安装脚本
 # 支持 Windows (PowerShell)
 
-# 配置
-$env:REPO_OWNER = if ($env:REPO_OWNER) { $env:REPO_OWNER } else { "gongxh13" }
+# 配置 - 自动检测 Git 仓库
+$env:REPO_OWNER = $env:REPO_OWNER
+$env:REPO_NAME = $env:REPO_NAME
+
+# 如果当前目录是 Git 仓库，则从 remote URL 中提取
+if (Test-Path .git) {
+    try {
+        $remoteUrl = git remote get-url origin 2>$null
+        if (-not $remoteUrl) {
+            $remoteUrl = git remote get-url (git remote | Select-Object -First 1) 2>$null
+        }
+
+        if ($remoteUrl) {
+            # 从 URL 中提取 owner 和 repo 名称
+            if ($remoteUrl -match 'github\.com[:/](?<owner>[^/]+)/(?<repo>[^/\.]+)') {
+                if (-not $env:REPO_OWNER) {
+                    $env:REPO_OWNER = $Matches.owner
+                }
+                if (-not $env:REPO_NAME) {
+                    $env:REPO_NAME = $Matches.repo
+                }
+            }
+        }
+    }
+    catch {
+        # 忽略 Git 检测错误，使用默认值
+    }
+}
+
+# 如果检测失败或未设置，使用默认值
+$env:REPO_OWNER = if ($env:REPO_OWNER) { $env:REPO_OWNER } else { "wldandan" }
 $env:REPO_NAME = if ($env:REPO_NAME) { $env:REPO_NAME } else { "claude-skills-tutorials" }
 $env:BRANCH = if ($env:BRANCH) { $env:BRANCH } else { "main" }
 $BASE_URL = "https://raw.githubusercontent.com/$($env:REPO_OWNER)/$($env:REPO_NAME)/$($env:BRANCH)"

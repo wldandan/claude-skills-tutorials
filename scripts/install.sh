@@ -48,8 +48,8 @@ get_directory_list() {
     if command -v jq &> /dev/null; then
         echo "$response" | jq -r '.[].name'
     else
-        # 降级方案：使用 sed 直接解析
-        echo "$response" | sed -n 's/.*"name":"\([^"]*\)".*/\1/p'
+        # 降级方案：使用 sed 直接解析（处理 JSON 中的空格）
+        echo "$response" | sed -n 's/.*"name":[[:space:]]*"\([^"]*\)".*/\1/p'
     fi
 }
 

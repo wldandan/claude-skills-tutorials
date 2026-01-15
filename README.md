@@ -5,6 +5,7 @@ Claude Skills 和 Sub-agents 使用指南和教程
 ## 文档
 
 - [Skills vs Sub-agents: 使用场景指南](./skills-vs-subagents.md) - 详细说明何时使用 Skills，何时使用 Sub-agents
+- [运维领域产品经理 Agent Prompt](./ops-pm-agent-prompt.md) - 智能运维命令行工具的产品经理 Agent 提示词
 
 ## 概述
 

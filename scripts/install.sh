@@ -44,8 +44,13 @@ get_directory_list() {
         return 1
     fi
 
-    # 提取文件/目录名
-    echo "$response" | grep -o '"name":"[^"]*"' | sed 's/"name":"//g' | sed 's/"//g'
+    # 优先使用 jq 解析 JSON，否则降级使用 sed
+    if command -v jq &> /dev/null; then
+        echo "$response" | jq -r '.[].name'
+    else
+        # 降级方案：使用 sed 直接解析
+        echo "$response" | sed -n 's/.*"name":"\([^"]*\)".*/\1/p'
+    fi
 }
 
 # 检查并安装

@@ -221,6 +221,217 @@ aiops alert silence --name high_cpu --duration 1h
 
 ---
 
+## 超节点(SuperPod)场景 10 大特性
+
+> **SuperPod** 是云原生环境中的大规模运维单元,包含数十到数百个节点的 Kubernetes 集群。以下特性针对 SuperPod 场景的独特挑战设计,与 OS 层面特性形成互补。
+
+### 11. 跨节点问题定界与根因分析
+**文件**: [11-cross-node-triage-rca.md](./features-superpod/11-cross-node-triage-rca.md)
+
+- 服务健康度全景视图(集群范围)
+- 跨节点故障定位
+- 故障传播路径追踪
+- 影响范围分析
+- 跨节点根因分析
+- 节点对比分析
+- 集群级事件关联
+- 分布式故障定界
+
+**关键命令**:
+```bash
+aiops triage --service payment-api --cluster-wide
+aiops locate-fault --service frontend-api --symptom "高延迟"
+aiops trace-failure --start-node node-1 --impact-scope
+aiops cross-node-rca --event 2024-01-15T14:15:00 --cluster superpod-1
+```
+
+---
+
+### 12. 容器/Pod 级别资源异常检测
+**文件**: [12-pod-resource-anomaly-detection.md](./features-superpod/12-pod-resource-anomaly-detection.md)
+
+- Pod 资源使用监控(CPU、内存、网络、磁盘)
+- OOM 事件分析
+- CPU throttling 分析
+- Pod 资源异常检测(泄漏、超限、限流)
+- 容器资源深度分析
+- Pod 资源配置分析(over/under-provisioning)
+- 同节点 Pod 资源竞争分析
+- Pod 资源趋势预测
+
+**关键命令**:
+```bash
+aiops monitor pod --name payment-api-5d7f9 --namespace production
+aiops analyze pod-oom --pod payment-api-5d7f9 --history 7d
+aiops analyze pod-throttling --pod frontend-abc123
+aiops detect pod-anomaly --namespace production --algorithm auto
+```
+
+---
+
+### 13. 微服务调用链追踪与分析
+**文件**: [13-microservice-trace-analysis.md](./features-superpod/13-microservice-trace-analysis.md)
+
+- 调用链查询(OpenTelemetry 兼容)
+- 慢调用分析和瓶颈定位
+- 错误调用分析和错误传播追踪
+- 调用链异常检测(延迟、失败率、调用量)
+- 服务依赖分析和拓扑图
+- 调用链对比分析
+- 调用链统计和趋势分析
+- 调用链可视化
+
+**关键命令**:
+```bash
+aiops trace --trace-id <trace-id>
+aiops analyze-slow-traces --service payment-api --threshold 3s
+aiops analyze-errors --service checkout-api --time-range 1h
+aiops detect-trace-anomaly --service user-api --algorithm ml
+```
+
+---
+
+### 14. 节点资源调度与配额优化分析
+**文件**: [14-node-scheduling-quota-optimization.md](./features-superpod/14-node-scheduling-quota-optimization.md)
+
+- 调度失败诊断
+- 节点负载均衡分析
+- 资源配额分析(ResourceQuota/LimitRange)
+- 调度策略模拟
+- Pod 资源配置优化建议
+- 重调度建议
+- 容量规划
+
+**关键命令**:
+```bash
+aiops diagnose-scheduling --pod payment-api-5d7f9
+aiops analyze-balance --cluster superpod-1
+aiops analyze-quota --namespace production
+aiops simulate-scheduling --pod <pod-spec> --dry-run
+```
+
+---
+
+### 15. 集群级故障传播与影响分析
+**文件**: [15-cluster-failure-propagation.md](./features-superpod/15-cluster-failure-propagation.md)
+
+- 故障传播路径分析
+- 影响范围评估(服务、用户、业务)
+- 级联故障预测
+- 故障隔离建议
+- 传播概率和速度分析
+- 阻断点识别
+
+**关键命令**:
+```bash
+aiops analyze-failure-propagation --start-node node-1
+aiops assess-impact --service payment-api
+aiops predict-cascade --cluster superpod-1
+aiops recommend-isolation --failure-type pod-crash
+```
+
+---
+
+### 16. 多租户资源竞争与 Noisy Neighbor 检测
+**文件**: [16-multitenant-noisy-neighbor.md](./features-superpod/16-multitenant-noisy-neighbor.md)
+
+- Noisy Neighbor 检测(吵闹邻居识别)
+- 资源竞争分析(CPU、内存、IO、网络)
+- 多租户资源视图
+- 资源隔离效果评估
+- QoS 分析
+- Namespace 资源配额分析
+
+**关键命令**:
+```bash
+aiops detect-noisy-neighbor --namespace production
+aiops analyze-contention --node node-3
+aiops multitenant-view --cluster superpod-1
+aiops evaluate-isolation --namespace staging
+```
+
+---
+
+### 17. 节点健康度评估与容量规划
+**文件**: [17-node-health-capacity-planning.md](./features-superpod/17-node-health-capacity-planning.md)
+
+- 节点健康度评估(硬件、资源、性能、稳定性)
+- 集群容量规划(基于趋势预测)
+- 资源需求预测
+- 维护计划生成
+- 扩缩容建议
+- 成本优化建议
+
+**关键命令**:
+```bash
+aiops assess-node-health --node node-5
+aiops plan-capacity --cluster superpod-1 --period 90d
+aiops forecast-demand --namespace production --ahead 30d
+aiops plan-maintenance --nodes node-1,node-2,node-3
+```
+
+---
+
+### 18. 服务网格(Istio/Linkerd)问题诊断
+**文件**: [18-service-mesh-diagnosis.md](./features-superpod/18-service-mesh-diagnosis.md)
+
+- 网格连接诊断(mTLS、连接失败)
+- 网格性能分析(sidecar 开销)
+- 网格配置验证(VirtualService、DestinationRule)
+- Sidecar 状态分析
+- 路由问题诊断
+- 安全策略诊断
+
+**关键命令**:
+```bash
+aiops diagnose-mesh --service payment-api
+aiops analyze-mesh-perf --namespace production
+aiops validate-mesh-config --namespace production
+aiops analyze-sidecar --pod payment-api-5d7f9
+```
+
+---
+
+### 19. 事件风暴与级联故障分析
+**文件**: [19-event-storm-cascade-failure.md](./features-superpod/19-event-storm-cascade-failure.md)
+
+- 事件风暴检测(大量事件同时发生)
+- 级联故障分析
+- 级联故障风险预测
+- 防护建议生成(熔断、降级、隔离)
+- 故障传播图构建
+- 自动阻断点识别
+
+**关键命令**:
+```bash
+aiops detect-event-storm --cluster superpod-1
+aiops analyze-cascade --start-time 2024-01-15T14:15:00
+aiops predict-cascade-risk --cluster superpod-1
+aiops recommend-cascade-protection --cluster superpod-1
+```
+
+---
+
+### 20. 分布式一致性与健康检查
+**文件**: [20-distributed-consistency-health.md](./features-superpod/20-distributed-consistency-health.md)
+
+- 复制状态检查(主从延迟)
+- 脑裂检测(Redis、Etcd)
+- 分布式一致性评估
+- Leader 选举监控
+- 数据完整性检查
+- 共识算法状态监控(Raft、Paxos)
+
+**关键命令**:
+```bash
+aiops check-replication --database mysql
+aiops detect-split-brain --cluster redis
+aiops assess-consistency --cluster etcd
+aiops monitor-leader --cluster etcd-cluster
+```
+
+---
+
 ## 技术架构
 
 ### 系统分层
@@ -348,7 +559,7 @@ aiops rca --auto --event <timestamp>
 ## 路线图
 
 ### v1.0 (首版本 - 3 个月)
-- ✅ 特性 1-10 的 P0 和 P1 功能
+- ✅ 特性 1-10 的 P0 和 P1 功能(OS 层面)
 - ✅ 基础 CLI 框架
 - ✅ SQLite 存储支持
 - ✅ 基础告警和通知
@@ -357,13 +568,35 @@ aiops rca --auto --event <timestamp>
 - ⏳ InfluxDB/Prometheus 存储
 - ⏳ Web Dashboard
 - ⏳ eBPF 深度分析
-- ⏳ 分布式追踪集成
+- ⏳ 分布式追踪集成(特性 13)
+- ⏳ Kubernetes 集成(特性 12, 14)
 
-### v2.0 (企业版 - 12 个月)
+### v2.0 (SuperPod 版 - 12 个月)
+- ⏳ 特性 11-20 (SuperPod 场景完整支持)
 - ⏳ 多主机集中管理
 - ⏳ 自动化修复
 - ⏳ 知识图谱
 - ⏳ 预测性运维
+
+### SuperPod 特性优先级规划
+
+#### P0 (MVP 必备 - 3 个月)
+- **特性 12**: Pod 资源异常检测(Kubernetes 基础)
+- **特性 11**: 跨节点问题定界(SuperPod 基础)
+- **特性 14**: 节点调度与配额优化
+- **特性 17**: 节点健康度评估
+
+#### P1 (核心功能 - 6 个月)
+- **特性 13**: 微服务调用链追踪(OpenTelemetry)
+- **特性 15**: 集群级故障传播分析
+- **特性 16**: 多租户 Noisy Neighbor 检测
+- **特性 19**: 事件风暴与级联故障
+
+#### P2 (高级功能 - 12 个月)
+- **特性 18**: 服务网格诊断(Istio/Linkerd)
+- **特性 20**: 分布式一致性检查
+- 自动故障隔离和自愈
+- 多集群管理
 
 ---
 
@@ -371,7 +604,8 @@ aiops rca --auto --event <timestamp>
 
 欢迎贡献代码、报告 Bug、提出新特性建议！
 
-- **文档**: [每个特性的详细文档](./features/)
+- **OS 层面特性**: [特性 1-10 详细文档](./features/)
+- **SuperPod 场景特性**: [特性 11-20 详细文档](./features-superpod/)
 - **Issue**: [GitHub Issues](https://github.com/your-org/aiops-cli/issues)
 - **Pull Request**: [GitHub PRs](https://github.com/your-org/aiops-cli/pulls)
 

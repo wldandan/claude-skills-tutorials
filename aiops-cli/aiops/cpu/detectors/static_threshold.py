@@ -11,17 +11,22 @@ from aiops.cpu.models import AnomalyEvent, CPUMetric
 class StaticThresholdDetector(BaseDetector):
     """Detects CPU anomalies based on static threshold values."""
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: Dict[str, Any] = None, threshold: float = 80.0, duration_seconds: int = 300):
         """
         Initialize the static threshold detector.
 
         Args:
-            config: Configuration dictionary with keys:
-                - threshold_percent: CPU threshold (default: 80)
-                - duration_seconds: Minimum duration for anomaly (default: 300)
+            config: Configuration dictionary (optional, for backward compatibility)
+            threshold: CPU threshold percentage (default: 80)
+            duration_seconds: Minimum duration for anomaly in seconds (default: 300)
         """
-        self.threshold_percent = config.get("threshold_percent", 80.0)
-        self.duration_seconds = config.get("duration_seconds", 300)
+        if config is not None:
+            # Support legacy config dict format
+            self.threshold_percent = config.get("threshold_percent", threshold)
+            self.duration_seconds = config.get("duration_seconds", duration_seconds)
+        else:
+            self.threshold_percent = threshold
+            self.duration_seconds = duration_seconds
 
     def detect(self, metrics: List[CPUMetric]) -> List[AnomalyEvent]:
         """

@@ -28,12 +28,15 @@ class ProcessCPUCollector(BaseCollector):
             raise CollectionError("Process collector is Linux-only")
         self._initialized = True
 
-    def collect(self) -> List[ProcessMetric]:
+    def collect(self, pid: int = None) -> List[ProcessMetric]:
         """
         Collect process CPU metrics.
 
+        Args:
+            pid: Optional process ID to collect. If None, collects top processes.
+
         Returns:
-            List of ProcessMetric for top processes
+            List of ProcessMetric for the specified process or top processes
 
         Raises:
             CollectionError: If collection fails
@@ -42,6 +45,36 @@ class ProcessCPUCollector(BaseCollector):
             self.initialize()
 
         try:
+            # If specific PID requested
+            if pid is not None:
+                try:
+                    proc = psutil.Process(pid)
+                    pinfo = {
+                        "pid": proc.pid,
+                        "name": proc.name(),
+                        "cpu_percent": proc.cpu_percent(),
+                        "memory_percent": proc.memory_percent(),
+                        "username": proc.username(),
+                        "status": proc.status(),
+                        "num_threads": proc.num_threads(),
+                        "cpu_times": proc.cpu_times(),
+                    }
+                    metric = ProcessMetric(
+                        timestamp=datetime.now(),
+                        pid=pinfo["pid"],
+                        name=pinfo["name"],
+                        cpu_percent=pinfo["cpu_percent"] if pinfo["cpu_percent"] else 0.0,
+                        user_time=pinfo["cpu_times"].user if pinfo["cpu_times"] else 0.0,
+                        system_time=pinfo["cpu_times"].system if pinfo["cpu_times"] else 0.0,
+                        num_threads=pinfo["num_threads"] or 0,
+                        status=pinfo["status"] or "R",
+                        memory_percent=pinfo["memory_percent"] or 0.0,
+                        username=pinfo["username"] or "unknown",
+                    )
+                    return [metric]
+                except (psutil.NoSuchProcess, psutil.AccessDenied) as e:
+                    raise CollectionError(f"Failed to collect process {pid}: {e}")
+
             # Get all processes sorted by CPU usage
             processes = []
 

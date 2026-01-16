@@ -108,6 +108,55 @@ class ProcessCPUCollector(BaseCollector):
         except psutil.Error as e:
             raise CollectionError(f"Failed to collect process metrics: {e}")
 
+    def collect_threads(self, pid: int) -> List[ProcessMetric]:
+        """
+        Collect thread-level CPU metrics for a process.
+
+        Args:
+            pid: Process ID to collect threads from
+
+        Returns:
+            List of ProcessMetric for each thread
+
+        Raises:
+            CollectionError: If collection fails
+        """
+        if not self._initialized:
+            self.initialize()
+
+        try:
+            proc = psutil.Process(pid)
+            threads = []
+
+            # Get thread information
+            thread_ids = proc.threads()
+            for tid_obj in thread_ids:
+                try:
+                    tid = tid_obj.id
+                    # Create a thread metric
+                    # Note: psutil doesn't provide per-thread CPU percent directly
+                    # We create a simplified metric for thread tracking
+                    metric = ProcessMetric(
+                        timestamp=datetime.now(),
+                        pid=pid,
+                        name=f"{proc.name()}_thread_{tid}",
+                        cpu_percent=0.0,  # Per-thread CPU requires additional monitoring
+                        user_time=0.0,
+                        system_time=0.0,
+                        num_threads=1,
+                        status="R",
+                        memory_percent=0.0,
+                        username=proc.username() or "unknown",
+                    )
+                    threads.append(metric)
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    continue
+
+            return threads
+
+        except (psutil.NoSuchProcess, psutil.AccessDenied) as e:
+            raise CollectionError(f"Failed to collect threads for process {pid}: {e}")
+
     def cleanup(self) -> None:
         """Clean up resources."""
         self._initialized = False

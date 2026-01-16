@@ -17,6 +17,14 @@ class SystemCPUCollector(BaseCollector):
         """Initialize the system CPU collector."""
         self._prev_total = 0.0
         self._prev_idle = 0.0
+        # Store previous values for each component to calculate percentages correctly
+        self._prev_user = 0
+        self._prev_nice = 0
+        self._prev_system = 0
+        self._prev_iowait = 0
+        self._prev_irq = 0
+        self._prev_softirq = 0
+        self._prev_steal = 0
         self._initialized = False
 
     def initialize(self) -> None:
@@ -75,19 +83,25 @@ class SystemCPUCollector(BaseCollector):
                 # Calculate CPU percentage
                 cpu_percent = calculate_cpu_percent(total, idle, self._prev_total, self._prev_idle)
 
-                # Calculate component percentages
+                # Calculate component percentages based on delta from previous sample
                 if total > 0 and total - self._prev_total > 0:
                     total_delta = total - self._prev_total
-                    idle_delta = idle - self._prev_idle
-                    active_delta = total_delta - idle_delta
 
-                    cpu_user = round(100 * (user - (self._prev_total - idle - self._prev_idle)) / total_delta, 2)
-                    cpu_system = round(100 * (system - 0) / total_delta, 2)
-                    cpu_idle = round(100 * idle_delta / total_delta, 2)
-                    cpu_iowait = round(100 * (iowait - 0) / total_delta, 2)
-                    cpu_steal = round(100 * (steal - 0) / total_delta, 2)
+                    # Calculate percentage of each component based on its delta
+                    cpu_user = round(100 * (user - self._prev_user) / total_delta, 2)
+                    cpu_system = round(100 * (system - self._prev_system) / total_delta, 2)
+                    cpu_idle = round(100 * (idle - self._prev_idle) / total_delta, 2)
+                    cpu_iowait = round(100 * (iowait - self._prev_iowait) / total_delta, 2)
+                    cpu_steal = round(100 * (steal - self._prev_steal) / total_delta, 2)
+
+                    # Ensure values are in valid range
+                    cpu_user = max(0.0, min(100.0, cpu_user))
+                    cpu_system = max(0.0, min(100.0, cpu_system))
+                    cpu_idle = max(0.0, min(100.0, cpu_idle))
+                    cpu_iowait = max(0.0, min(100.0, cpu_iowait))
+                    cpu_steal = max(0.0, min(100.0, cpu_steal))
                 else:
-                    # First sample or no change
+                    # First sample or no change - return zeros
                     cpu_user = 0.0
                     cpu_system = 0.0
                     cpu_idle = 100.0
@@ -97,6 +111,13 @@ class SystemCPUCollector(BaseCollector):
                 # Store for next calculation
                 self._prev_total = total
                 self._prev_idle = idle
+                self._prev_user = user
+                self._prev_nice = nice
+                self._prev_system = system
+                self._prev_iowait = iowait
+                self._prev_irq = irq
+                self._prev_softirq = softirq
+                self._prev_steal = steal
 
                 if cpu_name == "cpu":
                     # Aggregate CPU
@@ -123,4 +144,11 @@ class SystemCPUCollector(BaseCollector):
         """Clean up resources."""
         self._prev_total = 0.0
         self._prev_idle = 0.0
+        self._prev_user = 0
+        self._prev_nice = 0
+        self._prev_system = 0
+        self._prev_iowait = 0
+        self._prev_irq = 0
+        self._prev_softirq = 0
+        self._prev_steal = 0
         self._initialized = False

@@ -32,6 +32,44 @@ class AnomalyEvent:
         if not 0.0 <= self.confidence <= 1.0:
             raise ValueError(f"confidence must be between 0.0 and 1.0, got {self.confidence}")
 
+    @classmethod
+    def from_legacy(cls, event_id: str, severity: str, start_time: datetime, end_time: datetime,
+                   avg_cpu: float = None, max_cpu: float = None, baseline_cpu: float = None,
+                   confidence: float = 0.5):
+        """
+        Create AnomalyEvent from legacy API format.
+
+        This provides backward compatibility with older test code.
+        """
+        metrics = {}
+        if avg_cpu is not None:
+            metrics["avg_cpu_percent"] = avg_cpu
+        if max_cpu is not None:
+            metrics["max_cpu_percent"] = max_cpu
+
+        return cls(
+            id=event_id,
+            timestamp=start_time,
+            end_time=end_time,
+            severity=severity,
+            type="high_cpu",
+            confidence=confidence,
+            metrics=metrics,
+            baseline=baseline_cpu,
+            top_processes=[],
+            algorithm="static_threshold",
+        )
+
+    @property
+    def start_time(self) -> datetime:
+        """Get start time (alias for timestamp for backward compatibility)."""
+        return self.timestamp
+
+    @property
+    def event_id(self) -> str:
+        """Get event ID (alias for id for backward compatibility)."""
+        return self.id
+
     @property
     def duration_seconds(self) -> Optional[float]:
         """Get anomaly duration in seconds."""

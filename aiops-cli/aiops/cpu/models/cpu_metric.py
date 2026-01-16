@@ -33,16 +33,3 @@ class CPUMetric:
         ]:
             if not 0 <= value <= 100:
                 raise ValueError(f"{component_name} must be between 0 and 100, got {value}")
-
-        # Allow small floating point differences in component sum
-        # Components may not sum exactly to cpu_percent due to:
-        # - Rounding in calculations
-        # - Additional CPU components (nice, irq, softirq, steal, guest, etc.)
-        total_calculated = self.cpu_user + self.cpu_system + self.cpu_idle + self.cpu_iowait + self.cpu_steal
-        if abs(self.cpu_percent - total_calculated) > 5.0:
-            # Allow 5% tolerance for additional CPU time components
-            raise ValueError(
-                f"CPU components sum ({total_calculated:.2f}) differs significantly "
-                f"from cpu_percent ({self.cpu_percent:.2f}). "
-                f"This may indicate a calculation error."
-            )

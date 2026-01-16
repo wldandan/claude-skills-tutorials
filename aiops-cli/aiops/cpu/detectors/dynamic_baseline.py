@@ -14,17 +14,25 @@ from aiops.cpu.models import AnomalyEvent, Baseline, CPUMetric
 class DynamicBaselineDetector(BaseDetector):
     """Detects CPU anomalies using dynamic baseline calculation."""
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: Dict[str, Any] = None, window_days: int = 7, std_multiplier: float = 2.0, baseline_window: int = 100):
         """
         Initialize the dynamic baseline detector.
 
         Args:
-            config: Configuration dictionary with keys:
-                - window_days: Days of historical data for baseline (default: 7)
-                - std_multiplier: Standard deviation multiplier (default: 2.0)
+            config: Configuration dictionary (optional, for backward compatibility)
+            window_days: Days of historical data for baseline (default: 7)
+            std_multiplier: Standard deviation multiplier (default: 2.0)
+            baseline_window: Number of data points for baseline calculation (default: 100)
         """
-        self.window_days = config.get("window_days", 7)
-        self.std_multiplier = config.get("std_multiplier", 2.0)
+        if config is not None:
+            # Support legacy config dict format
+            self.window_days = config.get("window_days", window_days)
+            self.std_multiplier = config.get("std_multiplier", std_multiplier)
+            self.baseline_window = config.get("baseline_window", baseline_window)
+        else:
+            self.window_days = window_days
+            self.std_multiplier = std_multiplier
+            self.baseline_window = baseline_window
         self._baseline: Optional[Baseline] = None
 
     def detect(self, metrics: List[CPUMetric]) -> List[AnomalyEvent]:

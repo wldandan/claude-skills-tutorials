@@ -1,0 +1,37 @@
+# AIOps CLI Default Configuration
+
+cpu:
+  collection:
+    interval_seconds: 1        # System-level collection interval
+    process_interval: 5        # Process-level collection interval
+    max_processes: 50          # Top N processes to collect
+
+  detection:
+    algorithms:
+      static:
+        enabled: true
+        threshold_percent: 80
+        duration_seconds: 300  # Must sustain for 5 minutes
+
+      dynamic_baseline:
+        enabled: true
+        window_days: 7         # Use 7 days history
+        std_multiplier: 2.0    # 2 standard deviations
+
+      time_series:
+        enabled: false         # P2 feature
+        algorithm: isolation_forest
+        contamination: 0.05
+
+  storage:
+    backend: sqlite
+    path: /var/lib/aiops/cpu.db
+    retention_days: 30
+
+  alerting:
+    enabled: false             # P2 feature
+    consecutive_periods: 3     # Require 3 consecutive anomalies
+
+  output:
+    default_format: table       # table, json, yaml
+    colors: true

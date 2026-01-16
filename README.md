@@ -62,10 +62,56 @@ iwr -useb https://raw.githubusercontent.com/wldandan/claude-skills-tutorials/mai
 
 然后将它们安装到本地的 `~/.claude/` 对应目录下。无需手动维护列表，添加新的 Skill 或 Agent 后会自动被安装。
 
+## AIOps CLI 产品
+
+AIOps CLI 是一个智能运维命令行工具，用于系统监控、异常检测和故障分析。
+
+### 目录结构
+
+```
+aiops-cli/
+├── src/                    # 源代码
+│   └── aiops/             # aiops 包
+│       ├── config/        # 配置模块
+│       ├── core/          # 核心模块
+│       └── cpu/           # CPU 监控模块
+│
+├── tests/                 # 所有测试
+│   ├── unit/              # 单元测试
+│   ├── integration/       # 集成测试
+│   ├── performance/       # 性能测试
+│   ├── fixtures/          # 测试夹具
+│   ├── mocks/             # 模拟数据
+│   └── feature01/         # Feature01 功能测试
+│       ├── feature01-reports/
+│       └── test-plans/
+│
+├── chaos/                 # 故障注入测试
+│   ├── cpu/               # CPU 故障注入
+│   │   ├── fault_injector.py
+│   │   └── stress_generator.py
+│   └── README.md
+│
+└── doc/                   # 使用手册和文档
+    ├── aiops-cli/         # 功能特性文档
+    │   ├── features/      # 各功能特性说明
+    │   └── features-superpod/
+    ├── AIOps-CLI-产品介绍.md
+    ├── AIOps-CLI-销售PPT.md
+    ├── RELEASE_NOTES_v0.9.0.md
+    └── TEST_SUMMARY.md
+```
+
+### 核心功能
+
+- **CPU 异常检测** - 动态基线和静态阈值检测
+- **故障注入测试** - CPU 压力测试和故障模拟
+- **性能监控** - 实时指标收集和分析
+- **告警通知** - 异常事件告警
+
 ## 文档
 
 - [Skills vs Sub-agents: 使用场景指南](./skills-vs-subagents.md) - 详细说明何时使用 Skills，何时使用 Sub-agents
-- [运维领域产品经理 Agent Prompt](./ops-pm-agent-prompt.md) - 智能运维命令行工具的产品经理 Agent 提示词
 
 ## 概述
 

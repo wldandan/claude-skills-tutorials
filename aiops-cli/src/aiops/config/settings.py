@@ -86,37 +86,114 @@ class CPUConfig:
 
 
 @dataclass
+class MemoryCollectionConfig:
+    """Memory collection configuration."""
+    interval_seconds: int = 1
+    process_interval: int = 5
+    max_processes: int = 50
+
+
+@dataclass
+class MemoryLeakDetectionConfig:
+    """Memory leak detection configuration."""
+    enabled: bool = True
+    min_samples: int = 100
+    growth_threshold_mb: float = 50.0
+    confidence_threshold: float = 0.8
+
+
+@dataclass
+class OOMDetectionConfig:
+    """OOM risk detection configuration."""
+    enabled: bool = True
+    prediction_window_hours: int = 24
+    risk_threshold_percent: float = 90.0
+
+
+@dataclass
+class SwapDetectionConfig:
+    """Swap anomaly detection configuration."""
+    enabled: bool = True
+    threshold_percent: float = 10.0
+    spike_multiplier: float = 2.0
+
+
+@dataclass
+class MemoryDetectionAlgorithmsConfig:
+    """Memory detection algorithms configuration."""
+    memory_leak: MemoryLeakDetectionConfig = field(default_factory=MemoryLeakDetectionConfig)
+    oom_risk: OOMDetectionConfig = field(default_factory=OOMDetectionConfig)
+    swap_anomaly: SwapDetectionConfig = field(default_factory=SwapDetectionConfig)
+
+
+@dataclass
+class MemoryConfig:
+    """Memory feature configuration."""
+    collection: MemoryCollectionConfig = field(default_factory=MemoryCollectionConfig)
+    detection: MemoryDetectionAlgorithmsConfig = field(default_factory=MemoryDetectionAlgorithmsConfig)
+    storage: StorageConfig = field(default_factory=StorageConfig)
+    alerting: AlertingConfig = field(default_factory=AlertingConfig)
+    output: OutputConfig = field(default_factory=OutputConfig)
+
+
+@dataclass
 class Config:
     """Main configuration class."""
     cpu: CPUConfig = field(default_factory=CPUConfig)
+    memory: MemoryConfig = field(default_factory=MemoryConfig)
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Config":
         """Create Config from dictionary."""
         cpu_data = data.get("cpu", {})
+        memory_data = data.get("memory", {})
 
-        collection_data = cpu_data.get("collection", {})
-        detection_data = cpu_data.get("detection", {})
-        algorithms_data = detection_data.get("algorithms", {})
-        storage_data = cpu_data.get("storage", {})
-        alerting_data = cpu_data.get("alerting", {})
-        output_data = cpu_data.get("output", {})
+        # Parse CPU config
+        cpu_collection_data = cpu_data.get("collection", {})
+        cpu_detection_data = cpu_data.get("detection", {})
+        cpu_algorithms_data = cpu_detection_data.get("algorithms", {})
+        cpu_storage_data = cpu_data.get("storage", {})
+        cpu_alerting_data = cpu_data.get("alerting", {})
+        cpu_output_data = cpu_data.get("output", {})
 
-        static_data = algorithms_data.get("static", {})
-        dynamic_data = algorithms_data.get("dynamic_baseline", {})
-        timeseries_data = algorithms_data.get("time_series", {})
+        cpu_static_data = cpu_algorithms_data.get("static", {})
+        cpu_dynamic_data = cpu_algorithms_data.get("dynamic_baseline", {})
+        cpu_timeseries_data = cpu_algorithms_data.get("time_series", {})
+
+        # Parse Memory config
+        memory_collection_data = memory_data.get("collection", {})
+        memory_detection_data = memory_data.get("detection", {})
+        memory_algorithms_data = memory_detection_data.get("algorithms", {})
+        memory_storage_data = memory_data.get("storage", {})
+        memory_alerting_data = memory_data.get("alerting", {})
+        memory_output_data = memory_data.get("output", {})
+
+        memory_leak_data = memory_algorithms_data.get("memory_leak", {})
+        oom_risk_data = memory_algorithms_data.get("oom_risk", {})
+        swap_anomaly_data = memory_algorithms_data.get("swap_anomaly", {})
 
         return cls(
             cpu=CPUConfig(
-                collection=CPUCollectionConfig(**collection_data),
+                collection=CPUCollectionConfig(**cpu_collection_data),
                 detection=DetectionAlgorithmsConfig(
-                    static=StaticDetectionConfig(**static_data),
-                    dynamic_baseline=DynamicBaselineConfig(**dynamic_data),
-                    time_series=TimeSeriesDetectionConfig(**timeseries_data),
+                    static=StaticDetectionConfig(**cpu_static_data),
+                    dynamic_baseline=DynamicBaselineConfig(**cpu_dynamic_data),
+                    time_series=TimeSeriesDetectionConfig(**cpu_timeseries_data),
                 ),
-                storage=StorageConfig(**storage_data),
-                alerting=AlertingConfig(**alerting_data),
-                output=OutputConfig(**output_data),
+                storage=StorageConfig(**cpu_storage_data),
+                alerting=AlertingConfig(**cpu_alerting_data),
+                output=OutputConfig(**cpu_output_data),
+            ),
+            memory=MemoryConfig(
+                collection=MemoryCollectionConfig(**memory_collection_data),
+                detection=MemoryDetectionAlgorithmsConfig(
+                    memory_leak=MemoryLeakDetectionConfig(**memory_leak_data),
+                    oom_risk=OOMDetectionConfig(**oom_risk_data),
+                    swap_anomaly=SwapDetectionConfig(**swap_anomaly_data),
+                ),
+                storage=StorageConfig(**memory_storage_data),
+                alerting=AlertingConfig(**memory_alerting_data),
+                output=OutputConfig(**memory_output_data),
             )
         )
 

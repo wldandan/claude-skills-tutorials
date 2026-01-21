@@ -35,3 +35,41 @@ cpu:
   output:
     default_format: table       # table, json, yaml
     colors: true
+
+memory:
+  collection:
+    interval_seconds: 1        # System-level collection interval
+    process_interval: 5        # Process-level collection interval
+    max_processes: 50          # Top N processes to collect
+
+  detection:
+    algorithms:
+      memory_leak:
+        enabled: true
+        min_samples: 100       # Minimum samples for trend analysis
+        growth_threshold_mb: 50.0  # MB/hour growth threshold
+        confidence_threshold: 0.8  # Minimum R² for leak detection
+
+      oom_risk:
+        enabled: true
+        prediction_window_hours: 24  # Predict OOM within 24 hours
+        risk_threshold_percent: 90.0  # Risk threshold
+
+      swap_anomaly:
+        enabled: true
+        threshold_percent: 10.0  # Swap usage threshold
+        spike_multiplier: 2.0    # Spike detection multiplier
+
+  storage:
+    backend: sqlite
+    path: /var/lib/aiops/memory.db
+    retention_days: 30
+
+  alerting:
+    enabled: false             # P2 feature
+    consecutive_periods: 3     # Require 3 consecutive anomalies
+
+  output:
+    default_format: table       # table, json, yaml
+    colors: true
+

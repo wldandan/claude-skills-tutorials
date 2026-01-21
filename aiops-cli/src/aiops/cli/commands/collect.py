@@ -16,6 +16,8 @@ from aiops.memory.collectors import SystemMemoryCollector, ProcessMemoryCollecto
 from aiops.memory.models import MemoryMetric, ProcessMemoryMetric
 from aiops.diskio.collectors import DiskStatsCollector, ProcessIOCollector
 from aiops.diskio.models import DiskIOMetric, ProcessIOMetric
+from aiops.network.collectors import NetworkStatsCollector, ConnectionCollector
+from aiops.network.models import NetworkMetric, ConnectionMetric
 from aiops.cli.formatters.base import get_formatter
 from aiops.core.exceptions import CollectionError
 
@@ -662,5 +664,214 @@ def _collect_diskio_with_processes(
     finally:
         disk_collector.cleanup()
         process_collector.cleanup()
+        if _interrupted:
+            click.echo("\nCollection stopped by user", err=True)
+
+
+@collect.command()
+@click.option(
+    '--duration',
+    type=int,
+    default=60,
+    help='Collection duration in seconds (default: 60)'
+)
+@click.option(
+    '--interval',
+    type=float,
+    default=1.0,
+    help='Collection interval in seconds (default: 1.0)'
+)
+@click.option(
+    '--interface',
+    type=str,
+    default=None,
+    help='Specific interface to monitor (e.g., eth0, wlan0)'
+)
+@click.option(
+    '--stream',
+    is_flag=True,
+    help='Stream mode - continuous collection until Ctrl+C'
+)
+@click.option(
+    '--output',
+    type=click.Choice(['table', 'json', 'yaml'], case_sensitive=False),
+    default='table',
+    help='Output format (default: table)'
+)
+@click.option(
+    '--output-file',
+    type=click.Path(),
+    help='Save output to file instead of stdout'
+)
+@click.option(
+    '--include-connections',
+    is_flag=True,
+    help='Include network connection metrics'
+)
+@click.option(
+    '--connection-kind',
+    type=click.Choice(['inet', 'inet4', 'inet6', 'tcp', 'tcp4', 'tcp6', 'udp', 'udp4', 'udp6'], case_sensitive=False),
+    default='inet',
+    help='Connection kind to collect (default: inet)'
+)
+@click.pass_context
+def network(ctx, duration, interval, interface, stream, output, output_file,
+            include_connections, connection_kind):
+    """Collect network metrics
+
+    Examples:
+
+        \\b
+        # Collect for 30 seconds
+        aiops collect network --duration 30
+
+        \\b
+        # Monitor specific interface
+        aiops collect network --interface eth0 --stream
+
+        \\b
+        # Include connection metrics
+        aiops collect network --include-connections --connection-kind tcp
+    """
+    # Check if platform is Linux
+    if ctx.obj.get('non_linux'):
+        click.echo("Error: Network collection requires Linux platform", err=True)
+        click.echo("Your system: Not Linux", err=True)
+        sys.exit(1)
+
+    try:
+        # Setup signal handler for Ctrl+C
+        signal.signal(signal.SIGINT, signal_handler)
+
+        # Collect metrics
+        if include_connections:
+            metrics, connections = _collect_network_with_connections(
+                duration, interval, interface, connection_kind, stream
+            )
+            data = {
+                'network_metrics': metrics,
+                'connection_metrics': connections
+            }
+        else:
+            metrics = _collect_network_metrics(duration, interval, interface, stream)
+            data = metrics
+
+        # Format and output
+        formatter = get_formatter(output.lower())
+        formatted_output = formatter.format(data)
+
+        if output_file:
+            with open(output_file, 'w') as f:
+                f.write(formatted_output)
+            click.echo(f"Output saved to {output_file}")
+        else:
+            click.echo(formatted_output)
+
+    except CollectionError as e:
+        click.echo(f"Collection error: {str(e)}", err=True)
+        sys.exit(1)
+    except Exception as e:
+        click.echo(f"Unexpected error: {str(e)}", err=True)
+        sys.exit(1)
+
+
+def _collect_network_metrics(duration: int, interval: float, interface: Optional[str], stream: bool) -> List[NetworkMetric]:
+    """Collect network metrics
+
+    Args:
+        duration: Collection duration in seconds
+        interval: Collection interval in seconds
+        interface: Specific interface to monitor
+        stream: Enable stream mode (continuous)
+
+    Returns:
+        List of NetworkMetric objects
+    """
+    global _interrupted
+
+    collector = NetworkStatsCollector(interfaces=[interface] if interface else None)
+    collector.initialize()
+
+    metrics = []
+    start_time = time.time()
+
+    try:
+        click.echo("Collecting network metrics... (Press Ctrl+C to stop)", err=True)
+
+        while not _interrupted:
+            # Collect metrics
+            batch = collector.collect()
+            metrics.extend(batch)
+
+            # Check if duration reached (only in non-stream mode)
+            if not stream and (time.time() - start_time >= duration):
+                break
+
+            # Sleep for interval
+            time.sleep(interval)
+
+        return metrics
+
+    finally:
+        collector.cleanup()
+        if _interrupted:
+            click.echo("\nCollection stopped by user", err=True)
+
+
+def _collect_network_with_connections(
+    duration: int,
+    interval: float,
+    interface: Optional[str],
+    connection_kind: str,
+    stream: bool
+) -> tuple:
+    """Collect network metrics with connection information
+
+    Args:
+        duration: Collection duration in seconds
+        interval: Collection interval in seconds
+        interface: Specific interface to monitor
+        connection_kind: Connection kind to collect
+        stream: Enable stream mode (continuous)
+
+    Returns:
+        Tuple of (network_metrics, connection_metrics)
+    """
+    global _interrupted
+
+    network_collector = NetworkStatsCollector(interfaces=[interface] if interface else None)
+    connection_collector = ConnectionCollector(kind=connection_kind)
+
+    network_collector.initialize()
+    connection_collector.initialize()
+
+    network_metrics = []
+    connection_metrics = []
+    start_time = time.time()
+
+    try:
+        click.echo("Collecting network and connection metrics... (Press Ctrl+C to stop)", err=True)
+
+        while not _interrupted:
+            # Collect network metrics
+            net_batch = network_collector.collect()
+            network_metrics.extend(net_batch)
+
+            # Collect connection metrics
+            conn_batch = connection_collector.collect()
+            connection_metrics.extend(conn_batch)
+
+            # Check if duration reached (only in non-stream mode)
+            if not stream and (time.time() - start_time >= duration):
+                break
+
+            # Sleep for interval
+            time.sleep(interval)
+
+        return network_metrics, connection_metrics
+
+    finally:
+        network_collector.cleanup()
+        connection_collector.cleanup()
         if _interrupted:
             click.echo("\nCollection stopped by user", err=True)

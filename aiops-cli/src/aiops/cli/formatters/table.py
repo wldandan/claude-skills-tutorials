@@ -11,6 +11,7 @@ from aiops.cpu.models.anomaly_event import AnomalyEvent
 from aiops.cpu.models.process_metric import ProcessMetric
 from aiops.memory.models import MemoryMetric, ProcessMemoryMetric
 from aiops.diskio.models import DiskIOMetric, ProcessIOMetric
+from aiops.network.models import NetworkMetric, ConnectionMetric
 
 
 class TableFormatter(BaseFormatter):
@@ -61,6 +62,10 @@ class TableFormatter(BaseFormatter):
             return self._format_process_memory_metrics(data)
         elif isinstance(sample, ProcessIOMetric):
             return self._format_process_io_metrics(data)
+        elif isinstance(sample, NetworkMetric):
+            return self._format_network_metrics(data)
+        elif isinstance(sample, ConnectionMetric):
+            return self._format_connection_metrics(data)
         elif isinstance(sample, dict):
             # Handle dict with memory_metrics and process_metrics keys
             if 'memory_metrics' in sample and 'process_metrics' in sample:
@@ -69,6 +74,8 @@ class TableFormatter(BaseFormatter):
                 return self._format_cpu_with_processes(sample)
             elif 'diskio_metrics' in sample and 'process_metrics' in sample:
                 return self._format_diskio_with_processes(sample)
+            elif 'network_metrics' in sample and 'connection_metrics' in sample:
+                return self._format_network_with_connections(sample)
             # Generic dict formatting
             return self._format_dicts(data)
         else:
@@ -521,5 +528,112 @@ class TableFormatter(BaseFormatter):
         if process_metrics:
             output.append("\n")
             output.append(self._format_process_io_metrics(process_metrics))
+
+        return "".join(output)
+
+    def _format_network_metrics(self, metrics: List[NetworkMetric]) -> str:
+        """Format network metrics as table
+
+        Args:
+            metrics: List of NetworkMetric objects
+
+        Returns:
+            Formatted table string
+        """
+        table = Table(title="Network Metrics", show_header=True, header_style="bold cyan")
+        table.add_column("Timestamp", style="dim", width=20)
+        table.add_column("Interface", width=12)
+        table.add_column("Recv (MB)", justify="right")
+        table.add_column("Sent (MB)", justify="right")
+        table.add_column("Packets Recv", justify="right")
+        table.add_column("Packets Sent", justify="right")
+        table.add_column("Errors", justify="right")
+        table.add_column("Drops", justify="right")
+
+        for metric in metrics:
+            # Color code errors and drops
+            error_style = "red" if metric.total_errors > 0 else ""
+            drop_style = "red" if metric.total_drops > 0 else ""
+
+            table.add_row(
+                metric.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+                metric.interface,
+                f"{metric.bytes_recv_mb:.2f}",
+                f"{metric.bytes_sent_mb:.2f}",
+                str(metric.packets_recv),
+                str(metric.packets_sent),
+                Text(str(metric.total_errors), style=error_style) if metric.total_errors > 0 else str(metric.total_errors),
+                Text(str(metric.total_drops), style=drop_style) if metric.total_drops > 0 else str(metric.total_drops),
+            )
+
+        # Capture table output
+        with self.console.capture() as capture:
+            self.console.print(table)
+        return capture.get()
+
+    def _format_connection_metrics(self, connections: List[ConnectionMetric]) -> str:
+        """Format connection metrics as table
+
+        Args:
+            connections: List of ConnectionMetric objects
+
+        Returns:
+            Formatted table string
+        """
+        table = Table(title="Network Connections", show_header=True, header_style="bold cyan")
+        table.add_column("Protocol", width=8)
+        table.add_column("Local Address", width=22)
+        table.add_column("Remote Address", width=22)
+        table.add_column("Status", width=12)
+        table.add_column("PID", justify="right", width=8)
+        table.add_column("Process", width=20)
+
+        for conn in connections:
+            # Color code status
+            status_style = ""
+            if conn.status == 'ESTABLISHED':
+                status_style = "green"
+            elif conn.status == 'LISTEN':
+                status_style = "cyan"
+            elif conn.status == 'TIME_WAIT':
+                status_style = "yellow"
+            elif conn.status == 'CLOSE_WAIT':
+                status_style = "red"
+
+            table.add_row(
+                conn.protocol,
+                conn.local_endpoint,
+                conn.remote_endpoint,
+                Text(conn.status, style=status_style) if status_style else conn.status,
+                str(conn.pid) if conn.pid else "N/A",
+                conn.process_name[:20] if conn.process_name else "N/A",
+            )
+
+        # Capture table output
+        with self.console.capture() as capture:
+            self.console.print(table)
+        return capture.get()
+
+    def _format_network_with_connections(self, data: dict) -> str:
+        """Format network metrics with connection information
+
+        Args:
+            data: Dict with 'network_metrics' and 'connection_metrics' keys
+
+        Returns:
+            Formatted table string
+        """
+        output = []
+
+        # Format network metrics
+        network_metrics = data.get('network_metrics', [])
+        if network_metrics:
+            output.append(self._format_network_metrics(network_metrics))
+
+        # Format connection metrics
+        connection_metrics = data.get('connection_metrics', [])
+        if connection_metrics:
+            output.append("\n")
+            output.append(self._format_connection_metrics(connection_metrics))
 
         return "".join(output)

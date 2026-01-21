@@ -10,6 +10,7 @@ from aiops.cpu.models.cpu_metric import CPUMetric
 from aiops.cpu.models.anomaly_event import AnomalyEvent
 from aiops.cpu.models.process_metric import ProcessMetric
 from aiops.memory.models import MemoryMetric, ProcessMemoryMetric
+from aiops.diskio.models import DiskIOMetric, ProcessIOMetric
 
 
 class TableFormatter(BaseFormatter):
@@ -50,18 +51,24 @@ class TableFormatter(BaseFormatter):
             return self._format_cpu_metrics(data)
         elif isinstance(sample, MemoryMetric):
             return self._format_memory_metrics(data)
+        elif isinstance(sample, DiskIOMetric):
+            return self._format_diskio_metrics(data)
         elif isinstance(sample, AnomalyEvent):
             return self._format_anomaly_events(data)
         elif isinstance(sample, ProcessMetric):
             return self._format_process_metrics(data)
         elif isinstance(sample, ProcessMemoryMetric):
             return self._format_process_memory_metrics(data)
+        elif isinstance(sample, ProcessIOMetric):
+            return self._format_process_io_metrics(data)
         elif isinstance(sample, dict):
             # Handle dict with memory_metrics and process_metrics keys
             if 'memory_metrics' in sample and 'process_metrics' in sample:
                 return self._format_memory_with_processes(sample)
             elif 'cpu_metrics' in sample and 'process_metrics' in sample:
                 return self._format_cpu_with_processes(sample)
+            elif 'diskio_metrics' in sample and 'process_metrics' in sample:
+                return self._format_diskio_with_processes(sample)
             # Generic dict formatting
             return self._format_dicts(data)
         else:
@@ -417,3 +424,102 @@ class TableFormatter(BaseFormatter):
             'table'
         """
         return 'table'
+
+    def _format_diskio_metrics(self, metrics: List[DiskIOMetric]) -> str:
+        """Format disk I/O metrics as table
+
+        Args:
+            metrics: List of DiskIOMetric objects
+
+        Returns:
+            Formatted table string
+        """
+        table = Table(title="Disk I/O Metrics", show_header=True, header_style="bold cyan")
+        table.add_column("Timestamp", style="dim", width=20)
+        table.add_column("Device", width=12)
+        table.add_column("Read (MB)", justify="right")
+        table.add_column("Write (MB)", justify="right")
+        table.add_column("IOPS", justify="right")
+        table.add_column("Avg Read (ms)", justify="right")
+        table.add_column("Avg Write (ms)", justify="right")
+        table.add_column("Queue", justify="right")
+
+        for metric in metrics:
+            read_mb = metric.read_bytes / (1024 * 1024)
+            write_mb = metric.write_bytes / (1024 * 1024)
+
+            table.add_row(
+                metric.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+                metric.device,
+                f"{read_mb:.2f}",
+                f"{write_mb:.2f}",
+                str(metric.total_io_operations),
+                f"{metric.avg_read_time_ms:.2f}",
+                f"{metric.avg_write_time_ms:.2f}",
+                str(metric.io_in_progress),
+            )
+
+        # Capture table output
+        with self.console.capture() as capture:
+            self.console.print(table)
+        return capture.get()
+
+    def _format_process_io_metrics(self, processes: List[ProcessIOMetric]) -> str:
+        """Format process I/O metrics as table
+
+        Args:
+            processes: List of ProcessIOMetric objects
+
+        Returns:
+            Formatted table string
+        """
+        table = Table(title="Process I/O Metrics", show_header=True, header_style="bold cyan")
+        table.add_column("PID", justify="right", width=8)
+        table.add_column("Name", width=25)
+        table.add_column("Read (MB)", justify="right")
+        table.add_column("Write (MB)", justify="right")
+        table.add_column("Total (MB)", justify="right")
+        table.add_column("Read Calls", justify="right")
+        table.add_column("Write Calls", justify="right")
+        table.add_column("User", width=15)
+
+        for proc in processes:
+            table.add_row(
+                str(proc.pid),
+                proc.name[:25],
+                f"{proc.read_bytes_mb:.2f}",
+                f"{proc.write_bytes_mb:.2f}",
+                f"{proc.total_io_mb:.2f}",
+                str(proc.syscr),
+                str(proc.syscw),
+                proc.username[:15] if proc.username else "N/A",
+            )
+
+        # Capture table output
+        with self.console.capture() as capture:
+            self.console.print(table)
+        return capture.get()
+
+    def _format_diskio_with_processes(self, data: dict) -> str:
+        """Format disk I/O metrics with process information
+
+        Args:
+            data: Dict with 'diskio_metrics' and 'process_metrics' keys
+
+        Returns:
+            Formatted table string
+        """
+        output = []
+
+        # Format disk I/O metrics
+        diskio_metrics = data.get('diskio_metrics', [])
+        if diskio_metrics:
+            output.append(self._format_diskio_metrics(diskio_metrics))
+
+        # Format process metrics
+        process_metrics = data.get('process_metrics', [])
+        if process_metrics:
+            output.append("\n")
+            output.append(self._format_process_io_metrics(process_metrics))
+
+        return "".join(output)

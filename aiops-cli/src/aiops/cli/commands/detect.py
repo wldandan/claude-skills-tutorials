@@ -14,6 +14,8 @@ from aiops.cpu.models.cpu_metric import CPUMetric
 from aiops.cpu.models.anomaly_event import AnomalyEvent
 from aiops.memory.collectors import SystemMemoryCollector, ProcessMemoryCollector
 from aiops.memory.detectors import MemoryLeakDetector, OOMRiskDetector, SwapAnomalyDetector
+from aiops.diskio.collectors import DiskStatsCollector
+from aiops.diskio.detectors import IOLatencyDetector, ThroughputAnomalyDetector, QueueDepthDetector
 from aiops.cli.formatters.base import get_formatter
 from aiops.core.exceptions import DetectionError, CollectionError
 
@@ -640,5 +642,286 @@ def _run_memory_detection(cfg, algorithm, metrics, growth_threshold,
             )
             swap_anomalies = swap_detector.detect(system_metrics)
             all_anomalies.extend(swap_anomalies)
+
+    return all_anomalies
+
+
+@detect.command()
+@click.option(
+    '--duration',
+    type=int,
+    default=300,
+    help='Analysis duration in seconds (default: 300)'
+)
+@click.option(
+    '--algorithm',
+    type=click.Choice(['latency', 'throughput', 'queue', 'auto'], case_sensitive=False),
+    default='auto',
+    help='Detection algorithm (default: auto)'
+)
+@click.option(
+    '--device',
+    type=str,
+    default=None,
+    help='Specific device to monitor (e.g., sda, nvme0n1)'
+)
+@click.option(
+    '--latency-threshold',
+    type=float,
+    default=None,
+    help='Latency threshold in milliseconds (default: 100.0)'
+)
+@click.option(
+    '--drop-threshold',
+    type=float,
+    default=None,
+    help='Throughput drop threshold percent (default: 50.0)'
+)
+@click.option(
+    '--queue-threshold',
+    type=int,
+    default=None,
+    help='Queue depth threshold (default: 10)'
+)
+@click.option(
+    '--stream',
+    is_flag=True,
+    help='Stream mode - continuous detection until Ctrl+C'
+)
+@click.option(
+    '--output',
+    type=click.Choice(['table', 'json', 'yaml'], case_sensitive=False),
+    default='table',
+    help='Output format (default: table)'
+)
+@click.option(
+    '--output-file',
+    type=click.Path(),
+    help='Save output to file instead of stdout'
+)
+@click.pass_context
+def diskio(ctx, duration, algorithm, device, latency_threshold, drop_threshold,
+           queue_threshold, stream, output, output_file):
+    """Detect disk I/O anomalies
+
+    Examples:
+
+        \\b
+        # Detect all I/O anomalies
+        aiops detect diskio --duration 300
+
+        \\b
+        # Detect latency anomalies on specific device
+        aiops detect diskio --algorithm latency --device sda
+
+        \\b
+        # Stream mode with custom thresholds
+        aiops detect diskio --stream --latency-threshold 200 --queue-threshold 20
+    """
+    # Check if platform is Linux
+    if ctx.obj.get('non_linux'):
+        click.echo("Error: Disk I/O detection requires Linux platform", err=True)
+        click.echo("Your system: Not Linux", err=True)
+        sys.exit(1)
+
+    try:
+        # Setup signal handler for Ctrl+C
+        signal.signal(signal.SIGINT, signal_handler)
+
+        # Collect and detect
+        if stream:
+            _detect_diskio_stream(
+                device, algorithm, latency_threshold, drop_threshold,
+                queue_threshold, output, output_file
+            )
+        else:
+            anomalies = _detect_diskio_batch(
+                duration, device, algorithm, latency_threshold,
+                drop_threshold, queue_threshold
+            )
+
+            # Format and output
+            formatter = get_formatter(output.lower())
+            formatted_output = formatter.format(anomalies)
+
+            if output_file:
+                with open(output_file, 'w') as f:
+                    f.write(formatted_output)
+                click.echo(f"Output saved to {output_file}")
+            else:
+                click.echo(formatted_output)
+
+    except CollectionError as e:
+        click.echo(f"Collection error: {str(e)}", err=True)
+        sys.exit(1)
+    except DetectionError as e:
+        click.echo(f"Detection error: {str(e)}", err=True)
+        sys.exit(1)
+    except Exception as e:
+        click.echo(f"Unexpected error: {str(e)}", err=True)
+        sys.exit(1)
+
+
+def _detect_diskio_batch(duration, device, algorithm, latency_threshold,
+                         drop_threshold, queue_threshold):
+    """Run disk I/O detection in batch mode
+
+    Args:
+        duration: Collection duration in seconds
+        device: Specific device to monitor
+        algorithm: Detection algorithm
+        latency_threshold: Latency threshold in ms
+        drop_threshold: Throughput drop threshold percent
+        queue_threshold: Queue depth threshold
+
+    Returns:
+        List of AnomalyEvent objects
+    """
+    global _interrupted
+
+    # Collect metrics
+    collector = DiskStatsCollector(devices=[device] if device else None)
+    collector.initialize()
+
+    metrics = []
+    start_time = time.time()
+    interval = 1.0
+
+    try:
+        click.echo("Collecting disk I/O metrics for detection... (Press Ctrl+C to stop)", err=True)
+
+        while not _interrupted and (time.time() - start_time < duration):
+            batch = collector.collect()
+            metrics.extend(batch)
+            time.sleep(interval)
+
+        click.echo(f"Collected {len(metrics)} metrics, running detection...", err=True)
+
+    finally:
+        collector.cleanup()
+
+    # Run detection
+    return _run_diskio_detection(
+        metrics, algorithm, latency_threshold, drop_threshold, queue_threshold
+    )
+
+
+def _detect_diskio_stream(device, algorithm, latency_threshold, drop_threshold,
+                          queue_threshold, output_format, output_file):
+    """Run disk I/O detection in stream mode
+
+    Args:
+        device: Specific device to monitor
+        algorithm: Detection algorithm
+        latency_threshold: Latency threshold in ms
+        drop_threshold: Throughput drop threshold percent
+        queue_threshold: Queue depth threshold
+        output_format: Output format
+        output_file: Output file path
+    """
+    global _interrupted
+
+    click.echo("Starting continuous I/O anomaly detection... (Press Ctrl+C to stop)", err=True)
+
+    collector = DiskStatsCollector(devices=[device] if device else None)
+    collector.initialize()
+
+    interval = 1.0
+    buffer_size = 100
+    metrics_buffer = []
+
+    formatter = get_formatter(output_format.lower())
+    output_stream = open(output_file, 'w') if output_file else None
+
+    try:
+        while not _interrupted:
+            # Collect metrics
+            batch = collector.collect()
+            metrics_buffer.extend(batch)
+
+            # Keep buffer size manageable
+            if len(metrics_buffer) > buffer_size:
+                metrics_buffer = metrics_buffer[-buffer_size:]
+
+            # Run detection if we have enough data
+            if len(metrics_buffer) >= 10:
+                anomalies = _run_diskio_detection(
+                    metrics_buffer, algorithm, latency_threshold,
+                    drop_threshold, queue_threshold
+                )
+
+                if anomalies:
+                    formatted = formatter.format(anomalies)
+                    if output_stream:
+                        output_stream.write(formatted + "\n")
+                        output_stream.flush()
+                    else:
+                        click.echo(formatted)
+
+            time.sleep(interval)
+
+    finally:
+        collector.cleanup()
+        if output_stream:
+            output_stream.close()
+            click.echo(f"\nOutput saved to {output_file}", err=True)
+        if _interrupted:
+            click.echo("\nDetection stopped by user", err=True)
+
+
+def _run_diskio_detection(metrics, algorithm, latency_threshold,
+                          drop_threshold, queue_threshold):
+    """Run disk I/O detection algorithms
+
+    Args:
+        metrics: List of DiskIOMetric objects
+        algorithm: Detection algorithm
+        latency_threshold: Latency threshold in ms
+        drop_threshold: Throughput drop threshold percent
+        queue_threshold: Queue depth threshold
+
+    Returns:
+        List of AnomalyEvent objects
+    """
+    all_anomalies = []
+
+    # Set default thresholds
+    if latency_threshold is None:
+        latency_threshold = 100.0
+    if drop_threshold is None:
+        drop_threshold = 50.0
+    if queue_threshold is None:
+        queue_threshold = 10
+
+    # Run detection based on algorithm
+    if algorithm == 'latency' or algorithm == 'auto':
+        latency_detector = IOLatencyDetector(
+            latency_threshold_ms=latency_threshold,
+            spike_multiplier=3.0,
+            min_samples=10,
+            confidence_threshold=0.7
+        )
+        latency_anomalies = latency_detector.detect(metrics)
+        all_anomalies.extend(latency_anomalies)
+
+    if algorithm == 'throughput' or algorithm == 'auto':
+        throughput_detector = ThroughputAnomalyDetector(
+            drop_threshold_percent=drop_threshold,
+            spike_multiplier=3.0,
+            min_samples=10,
+            confidence_threshold=0.7
+        )
+        throughput_anomalies = throughput_detector.detect(metrics)
+        all_anomalies.extend(throughput_anomalies)
+
+    if algorithm == 'queue' or algorithm == 'auto':
+        queue_detector = QueueDepthDetector(
+            queue_threshold=queue_threshold,
+            sustained_duration_ratio=0.3,
+            min_samples=10,
+            confidence_threshold=0.7
+        )
+        queue_anomalies = queue_detector.detect(metrics)
+        all_anomalies.extend(queue_anomalies)
 
     return all_anomalies

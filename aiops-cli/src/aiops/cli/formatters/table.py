@@ -9,6 +9,7 @@ from aiops.cli.formatters.base import BaseFormatter
 from aiops.cpu.models.cpu_metric import CPUMetric
 from aiops.cpu.models.anomaly_event import AnomalyEvent
 from aiops.cpu.models.process_metric import ProcessMetric
+from aiops.memory.models import MemoryMetric, ProcessMemoryMetric
 
 
 class TableFormatter(BaseFormatter):
@@ -47,11 +48,20 @@ class TableFormatter(BaseFormatter):
         # Format based on type
         if isinstance(sample, CPUMetric):
             return self._format_cpu_metrics(data)
+        elif isinstance(sample, MemoryMetric):
+            return self._format_memory_metrics(data)
         elif isinstance(sample, AnomalyEvent):
             return self._format_anomaly_events(data)
         elif isinstance(sample, ProcessMetric):
             return self._format_process_metrics(data)
+        elif isinstance(sample, ProcessMemoryMetric):
+            return self._format_process_memory_metrics(data)
         elif isinstance(sample, dict):
+            # Handle dict with memory_metrics and process_metrics keys
+            if 'memory_metrics' in sample and 'process_metrics' in sample:
+                return self._format_memory_with_processes(sample)
+            elif 'cpu_metrics' in sample and 'process_metrics' in sample:
+                return self._format_cpu_with_processes(sample)
             # Generic dict formatting
             return self._format_dicts(data)
         else:
@@ -171,6 +181,126 @@ class TableFormatter(BaseFormatter):
             self.console.print(table)
         return capture.get()
 
+    def _format_memory_metrics(self, metrics: List[MemoryMetric]) -> str:
+        """Format memory metrics as table
+
+        Args:
+            metrics: List of MemoryMetric objects
+
+        Returns:
+            Formatted table string
+        """
+        table = Table(title="Memory Metrics", show_header=True, header_style="bold cyan")
+        table.add_column("Timestamp", style="dim", width=20)
+        table.add_column("Used%", justify="right")
+        table.add_column("Available%", justify="right")
+        table.add_column("Used (GB)", justify="right")
+        table.add_column("Available (GB)", justify="right")
+        table.add_column("Swap%", justify="right")
+        table.add_column("Cached (GB)", justify="right")
+
+        for metric in metrics:
+            # Color code memory% based on value
+            mem_style = self._get_memory_style(metric.mem_used_percent)
+            swap_style = self._get_memory_style(metric.swap_used_percent)
+
+            table.add_row(
+                metric.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+                Text(f"{metric.mem_used_percent:.1f}", style=mem_style),
+                f"{metric.mem_available_percent:.1f}",
+                f"{metric.mem_used / (1024**3):.2f}",
+                f"{metric.mem_available / (1024**3):.2f}",
+                Text(f"{metric.swap_used_percent:.1f}", style=swap_style),
+                f"{metric.cached / (1024**3):.2f}",
+            )
+
+        # Capture table output
+        with self.console.capture() as capture:
+            self.console.print(table)
+        return capture.get()
+
+    def _format_process_memory_metrics(self, processes: List[ProcessMemoryMetric]) -> str:
+        """Format process memory metrics as table
+
+        Args:
+            processes: List of ProcessMemoryMetric objects
+
+        Returns:
+            Formatted table string
+        """
+        table = Table(title="Process Memory Metrics", show_header=True, header_style="bold cyan")
+        table.add_column("PID", justify="right", width=8)
+        table.add_column("Name", width=25)
+        table.add_column("RSS (MB)", justify="right")
+        table.add_column("VMS (MB)", justify="right")
+        table.add_column("Swap (MB)", justify="right")
+        table.add_column("Status", width=8)
+        table.add_column("User", width=15)
+
+        for proc in processes:
+            table.add_row(
+                str(proc.pid),
+                proc.name[:25],
+                f"{proc.rss_mb:.1f}",
+                f"{proc.vms_mb:.1f}",
+                f"{proc.swap_mb:.1f}",
+                proc.status,
+                proc.username[:15] if proc.username else "N/A",
+            )
+
+        # Capture table output
+        with self.console.capture() as capture:
+            self.console.print(table)
+        return capture.get()
+
+    def _format_memory_with_processes(self, data: dict) -> str:
+        """Format memory metrics with process information
+
+        Args:
+            data: Dict with 'memory_metrics' and 'process_metrics' keys
+
+        Returns:
+            Formatted table string
+        """
+        output = []
+
+        # Format memory metrics
+        memory_metrics = data.get('memory_metrics', [])
+        if memory_metrics:
+            output.append(self._format_memory_metrics(memory_metrics))
+
+        # Format process metrics
+        process_metrics = data.get('process_metrics', [])
+        if process_metrics:
+            output.append("\n")
+            output.append(self._format_process_memory_metrics(process_metrics))
+
+        return "".join(output)
+
+    def _format_cpu_with_processes(self, data: dict) -> str:
+        """Format CPU metrics with process information
+
+        Args:
+            data: Dict with 'cpu_metrics' and 'process_metrics' keys
+
+        Returns:
+            Formatted table string
+        """
+        output = []
+
+        # Format CPU metrics
+        cpu_metrics = data.get('cpu_metrics', [])
+        if cpu_metrics:
+            output.append(self._format_cpu_metrics(cpu_metrics))
+
+        # Format process metrics
+        process_metrics = data.get('process_metrics', [])
+        if process_metrics:
+            output.append("\n")
+            output.append(self._format_process_metrics(process_metrics))
+
+        return "".join(output)
+
     def _format_dicts(self, data: List[dict]) -> str:
         """Format generic dicts as table
 
@@ -258,6 +388,27 @@ class TableFormatter(BaseFormatter):
             return "yellow"
         else:
             return "red"
+
+    def _get_memory_style(self, memory_percent: float) -> str:
+        """Get style for memory percentage
+
+        Args:
+            memory_percent: Memory percentage value
+
+        Returns:
+            Rich style string
+        """
+        if not self.colors:
+            return ""
+
+        if memory_percent >= 90:
+            return "bold red"
+        elif memory_percent >= 80:
+            return "yellow"
+        elif memory_percent >= 60:
+            return "cyan"
+        else:
+            return "green"
 
     def get_name(self) -> str:
         """Return formatter name

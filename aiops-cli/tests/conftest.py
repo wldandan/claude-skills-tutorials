@@ -298,6 +298,92 @@ def dynamic_baseline_detector():
 
 
 # ============================================================================
+# Memory Collectors Fixtures
+# ============================================================================
+
+@pytest.fixture
+def system_memory_collector():
+    """系统内存采集器 fixture"""
+    from aiops.memory.collectors import SystemMemoryCollector
+    collector = SystemMemoryCollector()
+
+    yield collector
+
+    # 清理
+    try:
+        collector.cleanup()
+    except:
+        pass
+
+
+@pytest.fixture
+def process_memory_collector():
+    """进程内存采集器 fixture"""
+    from aiops.memory.collectors import ProcessMemoryCollector
+    return ProcessMemoryCollector()
+
+
+# ============================================================================
+# Memory Mock Data Fixtures
+# ============================================================================
+
+@pytest.fixture
+def sample_memory_metrics():
+    """生成示例内存指标"""
+    metrics = []
+    start_time = datetime.now()
+
+    for i in range(100):
+        mem_used_percent = np.random.normal(60, 10)
+        mem_used_percent = max(0, min(100, mem_used_percent))
+
+        from aiops.memory.models import MemoryMetric
+        metric = MemoryMetric(
+            timestamp=start_time + timedelta(seconds=i),
+            mem_total=16 * 1024**3,
+            mem_free=int((100 - mem_used_percent) / 100 * 16 * 1024**3),
+            mem_available=int((100 - mem_used_percent) / 100 * 16 * 1024**3),
+            mem_used=int(mem_used_percent / 100 * 16 * 1024**3),
+            buffers=512 * 1024**2,
+            cached=2 * 1024**3,
+            slab=256 * 1024**2,
+            swap_total=8 * 1024**3,
+            swap_free=6 * 1024**3,
+            swap_used=2 * 1024**3,
+            swap_cached=10 * 1024**2
+        )
+        metrics.append(metric)
+
+    return metrics
+
+
+@pytest.fixture
+def mock_proc_meminfo_content():
+    """模拟 /proc/meminfo 内容"""
+    return """MemTotal:       16384000 kB
+MemFree:         4096000 kB
+MemAvailable:    8192000 kB
+Buffers:          512000 kB
+Cached:          2048000 kB
+SwapCached:        10000 kB
+SwapTotal:       8192000 kB
+SwapFree:        6144000 kB
+Dirty:             10000 kB
+Writeback:             0 kB
+"""
+
+
+@pytest.fixture
+def mock_proc_vmstat_content():
+    """模拟 /proc/vmstat 内容"""
+    return """pswpin 1000
+pswpout 2000
+pgfault 100000
+pgmajfault 500
+"""
+
+
+# ============================================================================
 # 性能测试 Fixtures
 # ============================================================================
 
@@ -364,14 +450,14 @@ def pytest_runtest_setup(item):
 # 测试报告钩子
 # ============================================================================
 
-def pytest_html_results_summary(prefix, summary, postfix):
-    """自定义 HTML 测试报告摘要"""
-    prefix.extend([
-        "<h2>测试环境信息</h2>",
-        f"<p>操作系统: {sys.platform}</p>",
-        f"<p>Python 版本: {sys.version}</p>",
-        f"<p>测试时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>",
-    ])
+# def pytest_html_results_summary(prefix, summary, postfix):
+#     """自定义 HTML 测试报告摘要"""
+#     prefix.extend([
+#         "<h2>测试环境信息</h2>",
+#         f"<p>操作系统: {sys.platform}</p>",
+#         f"<p>Python 版本: {sys.version}</p>",
+#         f"<p>测试时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>",
+#     ])
 
 
 @pytest.fixture(autouse=True)

@@ -13,6 +13,7 @@ from aiops.memory.models import MemoryMetric, ProcessMemoryMetric
 from aiops.diskio.models import DiskIOMetric, ProcessIOMetric
 from aiops.network.models import NetworkMetric, ConnectionMetric
 from aiops.process.models import ProcessStatusMetric
+from aiops.logs.models import LogEntry
 
 
 class TableFormatter(BaseFormatter):
@@ -69,6 +70,8 @@ class TableFormatter(BaseFormatter):
             return self._format_network_metrics(data)
         elif isinstance(sample, ConnectionMetric):
             return self._format_connection_metrics(data)
+        elif isinstance(sample, LogEntry):
+            return self._format_log_entries(data)
         elif isinstance(sample, dict):
             # Handle dict with memory_metrics and process_metrics keys
             if 'memory_metrics' in sample and 'process_metrics' in sample:
@@ -709,3 +712,50 @@ class TableFormatter(BaseFormatter):
             self.console.print(table)
         return capture.get()
 
+
+    def _format_log_entries(self, entries: List[LogEntry]) -> str:
+        """Format log entries as table
+
+        Args:
+            entries: List of LogEntry objects
+
+        Returns:
+            Formatted table string
+        """
+        table = Table(title="Log Entries", show_header=True, header_style="bold cyan")
+        table.add_column("Timestamp", style="dim", width=20)
+        table.add_column("Level", width=10)
+        table.add_column("Source", width=20)
+        table.add_column("Process", width=15)
+        table.add_column("Message", width=60)
+
+        for entry in entries:
+            # Color code level
+            level_style = ""
+            if entry.level == "FATAL" or entry.level == "CRITICAL":
+                level_style = "bold red"
+            elif entry.level == "ERROR":
+                level_style = "red"
+            elif entry.level == "WARNING":
+                level_style = "yellow"
+            elif entry.level == "INFO":
+                level_style = "green"
+            elif entry.level == "DEBUG":
+                level_style = "cyan"
+
+            # Truncate long messages
+            message = entry.message[:60] if len(entry.message) > 60 else entry.message
+            source = entry.source.split('/')[-1] if '/' in entry.source else entry.source
+
+            table.add_row(
+                entry.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+                Text(entry.level, style=level_style) if level_style else entry.level,
+                source[:20],
+                entry.process[:15] if entry.process else "N/A",
+                message,
+            )
+
+        # Capture table output
+        with self.console.capture() as capture:
+            self.console.print(table)
+        return capture.get()

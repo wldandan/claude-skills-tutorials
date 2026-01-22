@@ -40,12 +40,14 @@ from aiops.cli.commands.detect import detect
 from aiops.cli.commands.analyze import analyze
 from aiops.cli.commands.config import config
 from aiops.cli.commands.monitor import monitor
+from aiops.cli.commands.logs import logs
 
 cli.add_command(collect)
 cli.add_command(detect)
 cli.add_command(analyze)
 cli.add_command(config)
 cli.add_command(monitor)
+cli.add_command(logs)
 
 
 def main():

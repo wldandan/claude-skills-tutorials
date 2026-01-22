@@ -12,6 +12,7 @@ from aiops.cpu.models.process_metric import ProcessMetric
 from aiops.memory.models import MemoryMetric, ProcessMemoryMetric
 from aiops.diskio.models import DiskIOMetric, ProcessIOMetric
 from aiops.network.models import NetworkMetric, ConnectionMetric
+from aiops.process.models import ProcessStatusMetric
 
 
 class TableFormatter(BaseFormatter):
@@ -62,6 +63,8 @@ class TableFormatter(BaseFormatter):
             return self._format_process_memory_metrics(data)
         elif isinstance(sample, ProcessIOMetric):
             return self._format_process_io_metrics(data)
+        elif isinstance(sample, ProcessStatusMetric):
+            return self._format_process_status_metrics(data)
         elif isinstance(sample, NetworkMetric):
             return self._format_network_metrics(data)
         elif isinstance(sample, ConnectionMetric):
@@ -637,3 +640,72 @@ class TableFormatter(BaseFormatter):
             output.append(self._format_connection_metrics(connection_metrics))
 
         return "".join(output)
+
+    def _format_process_status_metrics(self, processes: List[ProcessStatusMetric]) -> str:
+        """Format process status metrics as table
+
+        Args:
+            processes: List of ProcessStatusMetric objects
+
+        Returns:
+            Formatted table string
+        """
+        table = Table(title="Process Status", show_header=True, header_style="bold cyan")
+        table.add_column("PID", justify="right", width=8)
+        table.add_column("Name", width=25)
+        table.add_column("Status", width=8)
+        table.add_column("CPU%", justify="right")
+        table.add_column("Memory%", justify="right")
+        table.add_column("RSS (MB)", justify="right")
+        table.add_column("Threads", justify="right")
+        table.add_column("FDs", justify="right")
+        table.add_column("Uptime", justify="right")
+        table.add_column("User", width=15)
+
+        for proc in processes:
+            # Color code status
+            status_style = ""
+            if proc.is_zombie:
+                status_style = "bold red"
+            elif proc.is_running:
+                status_style = "green"
+            elif proc.is_sleeping:
+                status_style = "cyan"
+            elif proc.is_disk_sleep:
+                status_style = "yellow"
+            elif proc.is_stopped:
+                status_style = "red"
+
+            # Color code CPU and memory
+            cpu_style = self._get_cpu_style(proc.cpu_percent)
+            mem_style = self._get_memory_style(proc.memory_percent)
+
+            # Format uptime
+            uptime_seconds = proc.uptime_seconds
+            if uptime_seconds < 60:
+                uptime_str = f"{uptime_seconds:.0f}s"
+            elif uptime_seconds < 3600:
+                uptime_str = f"{uptime_seconds/60:.0f}m"
+            elif uptime_seconds < 86400:
+                uptime_str = f"{uptime_seconds/3600:.1f}h"
+            else:
+                uptime_str = f"{uptime_seconds/86400:.1f}d"
+
+            table.add_row(
+                str(proc.pid),
+                proc.name[:25],
+                Text(proc.status, style=status_style) if status_style else proc.status,
+                Text(f"{proc.cpu_percent:.1f}", style=cpu_style),
+                Text(f"{proc.memory_percent:.1f}", style=mem_style),
+                f"{proc.memory_rss_mb:.1f}",
+                str(proc.num_threads),
+                str(proc.num_fds),
+                uptime_str,
+                proc.username[:15] if proc.username else "N/A",
+            )
+
+        # Capture table output
+        with self.console.capture() as capture:
+            self.console.print(table)
+        return capture.get()
+

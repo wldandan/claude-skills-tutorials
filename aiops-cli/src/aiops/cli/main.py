@@ -44,6 +44,7 @@ from aiops.cli.commands.logs import logs
 from aiops.cli.commands.collector import collector
 from aiops.cli.commands.correlate import correlate
 from aiops.cli.commands.rca import rca
+from aiops.cli.commands.alert import alert
 
 cli.add_command(collect)
 cli.add_command(detect)
@@ -54,6 +55,7 @@ cli.add_command(logs)
 cli.add_command(collector)
 cli.add_command(correlate)
 cli.add_command(rca)
+cli.add_command(alert)
 
 
 def main():

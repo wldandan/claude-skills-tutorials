@@ -1,74 +1,84 @@
-"""
-Process-level memory metric data model
-"""
+"""Process memory metric model."""
+
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Dict, Any, Optional
 
 
 @dataclass
 class ProcessMemoryMetric:
-    """Process-level memory metric from /proc/<pid>/status and statm"""
+    """Process-level memory metrics from /proc/<pid>/status."""
 
     timestamp: datetime
     pid: int
     name: str
 
-    # Memory sizes (from /proc/<pid>/status)
-    vm_size: int        # Virtual memory size (bytes)
-    vm_rss: int         # Resident set size (bytes)
-    vm_data: int        # Data segment size (bytes)
-    vm_stk: int         # Stack size (bytes)
-    vm_exe: int         # Executable size (bytes)
-    vm_lib: int         # Shared library size (bytes)
-    vm_swap: int        # Swap usage (bytes)
+    # Memory sizes (KB)
+    vm_size: int  # Virtual memory size
+    vm_rss: int   # Resident set size
+    vm_data: int  # Data segment size
+    vm_stk: int   # Stack size
+    vm_exe: int   # Executable size
+    vm_lib: int   # Library size
+    vm_swap: int  # Swap usage
 
     # Additional info
-    username: str
-    status: str         # Process status (R, S, D, Z, T, W, X, I)
+    username: Optional[str] = None
+    status: Optional[str] = None
 
     def __post_init__(self):
-        """Validate process memory metrics"""
+        """Validate process memory metric."""
         if self.pid <= 0:
-            raise ValueError(f"pid must be positive, got {self.pid}")
+            raise ValueError("pid must be positive")
 
         if self.vm_size < 0:
-            raise ValueError(f"vm_size must be non-negative, got {self.vm_size}")
+            raise ValueError("vm_size cannot be negative")
 
         if self.vm_rss < 0:
-            raise ValueError(f"vm_rss must be non-negative, got {self.vm_rss}")
+            raise ValueError("vm_rss cannot be negative")
 
-        valid_statuses = ["R", "S", "D", "Z", "T", "W", "X", "I"]
-        if self.status not in valid_statuses:
-            raise ValueError(f"Invalid status: {self.status}. Must be one of {valid_statuses}")
+        if self.vm_swap < 0:
+            raise ValueError("vm_swap cannot be negative")
 
     @property
     def rss_mb(self) -> float:
-        """Get RSS in MB"""
-        return round(self.vm_rss / (1024 * 1024), 2)
+        """RSS in MB."""
+        return self.vm_rss / 1024
 
     @property
     def vms_mb(self) -> float:
-        """Get VMS in MB"""
-        return round(self.vm_size / (1024 * 1024), 2)
+        """VMS in MB."""
+        return self.vm_size / 1024
 
     @property
     def swap_mb(self) -> float:
-        """Get swap in MB"""
-        return round(self.vm_swap / (1024 * 1024), 2)
+        """Swap in MB."""
+        return self.vm_swap / 1024
 
-    def to_dict(self):
-        """Convert to dictionary for JSON/YAML output"""
+    @property
+    def rss_percent(self) -> float:
+        """RSS as percentage of VMS."""
+        if self.vm_size == 0:
+            return 0.0
+        return (self.vm_rss / self.vm_size) * 100
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary."""
         return {
             'timestamp': self.timestamp.isoformat(),
             'pid': self.pid,
             'name': self.name,
+            'vm_size': self.vm_size,
+            'vm_rss': self.vm_rss,
+            'vm_data': self.vm_data,
+            'vm_stk': self.vm_stk,
+            'vm_exe': self.vm_exe,
+            'vm_lib': self.vm_lib,
+            'vm_swap': self.vm_swap,
             'rss_mb': self.rss_mb,
             'vms_mb': self.vms_mb,
             'swap_mb': self.swap_mb,
-            'data_mb': round(self.vm_data / (1024 * 1024), 2),
-            'stack_mb': round(self.vm_stk / (1024 * 1024), 2),
-            'exe_mb': round(self.vm_exe / (1024 * 1024), 2),
-            'lib_mb': round(self.vm_lib / (1024 * 1024), 2),
+            'rss_percent': self.rss_percent,
             'username': self.username,
             'status': self.status,
         }

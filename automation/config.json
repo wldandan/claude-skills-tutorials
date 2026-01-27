@@ -1,0 +1,44 @@
+{
+  "task_name": "daily_zhihu_answer",
+  "description": "每日自动回答知乎问题",
+  "schedule": {
+    "time": "22:00",
+    "timezone": "Asia/Shanghai",
+    "frequency": "daily"
+  },
+  "zhihu_account": {
+    "username": "15389041528",
+    "password": "wldandan19810119"
+  },
+  "content_config": {
+    "topics": [
+      "AI Agent",
+      "Prompt Engineering",
+      "大模型应用",
+      "RAG技术",
+      "Claude Code",
+      "Agent软件工程",
+      "软件工程"
+    ],
+    "question_filters": {
+      "publish_days": 7,
+      "min_views": 1000,
+      "max_answers": 50
+    },
+    "answer_requirements": {
+      "min_words": 4000,
+      "max_words": 6000,
+      "code_examples": 10,
+      "include_diagrams": true,
+      "include_data": true
+    }
+  },
+  "publish_mode": "auto",
+  "output_dir": "/Users/leiw/Projects/claude-skills-tutorials/zhihu-drafts/daily",
+  "log_dir": "/Users/leiw/Projects/claude-skills-tutorials/automation/logs",
+  "notification": {
+    "enabled": false,
+    "email": null,
+    "webhook": null
+  }
+}

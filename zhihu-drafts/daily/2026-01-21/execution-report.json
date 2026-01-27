@@ -1,0 +1,12 @@
+{
+  "date": "2026-01-21",
+  "status": "failed",
+  "question": {
+    "title": "大模型Agent的核心还是prompt?",
+    "link": "https://www.zhihu.com/question/628670548",
+    "topic": "AI Agent"
+  },
+  "answer_length": 2453,
+  "publish_success": false,
+  "log_file": "/Users/leiw/Projects/claude-skills-tutorials/automation/logs/semi-auto-2026-01-21.log"
+}

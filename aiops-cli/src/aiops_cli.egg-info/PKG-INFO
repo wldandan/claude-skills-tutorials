@@ -1,0 +1,39 @@
+Metadata-Version: 2.4
+Name: aiops-cli
+Version: 0.1.0
+Summary: AIOps CLI - Intelligent system monitoring and analysis
+Author-email: AIOps Team <team@aiops-cli.com>
+License: MIT
+Project-URL: Homepage, https://github.com/aiops-cli/aiops-cli
+Project-URL: Documentation, https://docs.aiops-cli.com
+Project-URL: Repository, https://github.com/aiops-cli/aiops-cli
+Project-URL: Bug Tracker, https://github.com/aiops-cli/aiops-cli/issues
+Keywords: aiops,monitoring,anomaly-detection,devops,sre
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Developers
+Classifier: Intended Audience :: System Administrators
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: POSIX :: Linux
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Topic :: System :: Monitoring
+Classifier: Topic :: System :: Systems Administration
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+Requires-Dist: click>=8.1.0
+Requires-Dist: rich>=13.0.0
+Requires-Dist: pyyaml>=6.0
+Requires-Dist: psutil>=5.9.0
+Requires-Dist: numpy>=1.24.0
+Requires-Dist: scipy>=1.10.0
+Provides-Extra: dev
+Requires-Dist: pytest>=7.0.0; extra == "dev"
+Requires-Dist: pytest-cov>=4.0.0; extra == "dev"
+Requires-Dist: pytest-html>=3.1.0; extra == "dev"
+Requires-Dist: pytest-mock>=3.10.0; extra == "dev"
+Requires-Dist: black>=23.0.0; extra == "dev"
+Requires-Dist: flake8>=6.0.0; extra == "dev"
+Requires-Dist: mypy>=1.0.0; extra == "dev"

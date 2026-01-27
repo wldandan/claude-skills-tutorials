@@ -1,12 +1,9 @@
-"""
-Memory module for AIOps CLI
-"""
-from aiops.memory.models import MemoryMetric, ProcessMemoryMetric
-from aiops.memory.collectors import SystemMemoryCollector, ProcessMemoryCollector
+"""Memory anomaly detection module."""
+
+from aiops.memory.models.memory_metric import MemoryMetric
+from aiops.memory.models.process_memory_metric import ProcessMemoryMetric
 
 __all__ = [
     'MemoryMetric',
     'ProcessMemoryMetric',
-    'SystemMemoryCollector',
-    'ProcessMemoryCollector',
 ]

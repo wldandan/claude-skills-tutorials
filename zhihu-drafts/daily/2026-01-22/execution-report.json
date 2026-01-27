@@ -1,0 +1,12 @@
+{
+  "date": "2026-01-22",
+  "status": "failed",
+  "question": {
+    "title": "AI Agent 的典型应用场景有哪些？",
+    "link": "https://www.zhihu.com/question/1930729478453191616",
+    "topic": "AI Agent"
+  },
+  "answer_length": 17116,
+  "publish_success": false,
+  "log_file": "/Users/leiw/Projects/claude-skills-tutorials/automation/logs/semi-auto-2026-01-22.log"
+}

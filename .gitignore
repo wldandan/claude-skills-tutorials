@@ -26,3 +26,6 @@ ENV/
 
 # Claude local settings
 .claude/settings.local.json
+
+# Zhihu drafts
+zhihu-drafts/

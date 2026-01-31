@@ -41,22 +41,28 @@ We use a standardized directory structure for collaboration. Ensure agents save 
     - **Context**: Tell it to read `docs/01_product_strategy/` and `docs/02_product_backlog/`.
     - **Instruction**: "Read the PRD and Backlog. Create or update Technical Design documents in `docs/03_system_design/`. Ensure the directory exists."
 
-4.  **Development (Developer)**
-    - **Action**: Ask `software-developer` to write the code.
-    - **Context**: Tell it to read `docs/02_product_backlog/` and `docs/03_system_design/`.
-    - **Instruction**: "Implement the code based on the Backlog and Design. Save source code to `src/` and tests to `tests/`. You can check `docs/04_development/` for past technical notes."
+4.  **Iterative Development Strategy (Developer & Tester)**
+    - **Strategy**: For large projects or complex features, **DO NOT** attempt to build everything in one go. Use an iterative approach to manage context window and complexity.
+    - **Action Loop**:
+        1.  **Plan**: Review the Backlog (`docs/02_product_backlog/`) and Design (`docs/03_system_design/`) to identify a list of distinct Features or Modules to implement.
+        2.  **Iterate**: For each Feature/Module in the list:
+            -   **Develop**: Call `software-developer`.
+                -   **Instruction**: "Implement **ONLY** the [Feature Name] defined in [Specific File Path]. Read `docs/03_system_design/` for architectural guidance. Save code to `src/`."
+            -   **Verify**: Call `software-tester`.
+                -   **Instruction**: "Verify **ONLY** the [Feature Name]. Run tests and save the report to `docs/05_qa_reports/`."
+            -   **Handle Bugs**: If the Tester finds bugs, recall the Developer to fix them immediately before moving to the next feature.
+            -   **Commit (Optional)**: You may use `git-workflow` to commit this specific feature if it passes tests, ensuring granular history.
 
-5.  **Testing & Verification (Tester)**
-    - **Action**: Ask `software-tester` to verify the implementation.
-    - **Context**: Tell it to read `docs/02_product_backlog/` and check `src/`.
-    - **Instruction**: "Run tests against `src/` based on the Acceptance Criteria in `docs/02_product_backlog/`. Save Test Reports to `docs/05_qa_reports/`."
+5.  **Final Integration & Acceptance**
+    - **Action**: Once all features are implemented and verified individually.
+    - **Instruction**: Ask `software-tester` to run a full regression test suite to ensure no regressions were introduced.
 
 6.  **Delivery & Version Control (Git)**
-    - **Condition**: Only proceed if Testing is successful (Step 5 passes).
-    - **Action**: Use the `git-workflow` skill to commit the artifacts.
+    - **Condition**: Only proceed if Final Integration Testing is successful.
+    - **Action**: Use the `git-workflow` skill to commit the final artifacts.
     - **Instruction**:
         1.  "Stage all changes in the workspace (`git add .`)."
-        2.  "Consult the `git-workflow` skill to generate a Semantic Commit Message based on the features implemented (e.g., `feat(todo): add list management`)."
+        2.  "Consult the `git-workflow` skill to generate a Semantic Commit Message based on the features implemented."
         3.  "Execute `git commit -m '...'` with the generated message."
 
 ## Handling Feedback Loops (Bugs)
@@ -66,7 +72,7 @@ We use a standardized directory structure for collaboration. Ensure agents save 
     1.  Call `software-developer`.
     2.  **Instruction**: "Read the latest report in `docs/05_qa_reports/` and fix identified bugs in `src/`."
     3.  After fixes, call `software-tester` again.
-- **Success**: When tests pass, proceed to **Step 6 (Delivery & Version Control)**.
+- **Success**: When tests pass, proceed to next step.
 
 ## Data Passing Strategy
 - **Directory-Based**: Agents read from upstream directories and write to their own dedicated workspace directories.
